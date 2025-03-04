@@ -1,0 +1,71 @@
+{
+  "tiers": [
+    {
+      "name": "Beta Access",
+      "description": "Early adopter special pricing",
+      "monthlyPrice": 5,
+      "priceId": {
+        "monthly": "price_1QxWswE71MX3Ijq29WXOOGeo",
+        "yearly": "price_1QxWvWE71MX3Ijq2gg8BhibJ"
+      },
+      "features": [
+        "All core translation features",
+        "100+ language support",
+        "Text-to-speech in all languages",
+        "Price lock guarantee",
+        "Early access to new features",
+        "Priority support"
+      ],
+      "highlighted": true,
+      "badge": "Limited Offer",
+      "limitedSpots": "100 spots left",
+      "ctaText": "Get Beta Access",
+      "iconType": "star",
+      "active": true
+    },
+    {
+      "name": "Standard",
+      "description": "Perfect for regular users",
+      "monthlyPrice": 10,
+      "priceId": {
+        "monthly": "price_1QxWswE71MX3Ijq29WXOOGeo",
+        "yearly": "price_1QxWvWE71MX3Ijq2gg8BhibJ"
+      },
+      "features": [
+        "All core translation features",
+        "100+ language support",
+        "Text-to-speech in all languages",
+        "Custom formality settings",
+        "Regular updates",
+        "Standard support"
+      ],
+      "highlighted": false,
+      "ctaText": "Subscribe Now",
+      "iconType": "zap",
+      "active": false
+    },
+    {
+      "name": "Lifetime",
+      "description": "One-time payment, forever access",
+      "yearlyPrice": 200,
+      "oneTime": true,
+      "priceId": {
+        "monthly": "price_1QxWswE71MX3Ijq29WXOOGeo",
+        "yearly": "price_1QxWswE71MX3Ijq29WXOOGeo"
+      },
+      "features": [
+        "All core translation features",
+        "100+ language support",
+        "Text-to-speech in all languages",
+        "Custom formality settings",
+        "All future updates",
+        "Premium support",
+        "No recurring payments"
+      ],
+      "highlighted": false,
+      "ctaText": "Get Lifetime Access",
+      "iconType": "shield",
+      "active": false
+    }
+  ]
+}
