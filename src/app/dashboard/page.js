@@ -350,7 +350,7 @@ export default function Dashboard() {
     loadingStateSetter(true);
     try {
       const adjustedText = adjustTextForSpeech(text);
-      const res = await fetch("/api/opentts", {
+      const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: adjustedText, language: lang }),

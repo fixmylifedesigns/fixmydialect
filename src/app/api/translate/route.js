@@ -77,7 +77,7 @@ export async function POST(request) {
         "notes": "[EXPLAIN how formality was applied. For 'superior', specify how honorific speech was used. For 'stranger', mention polite forms. For 'friend', explain informal choices. If 'child', note simplifications.]"
       }
       `;
-
+      // GPT-4-turbo gpt-3.5-turbo
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -85,7 +85,7 @@ export async function POST(request) {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4-turbo",
         messages: [
           {
             role: "system",
@@ -134,7 +134,15 @@ export async function POST(request) {
         );
       }
 
-      return NextResponse.json(jsonResponse);
+      // Return with cache prevention headers
+      return NextResponse.json(jsonResponse, {
+        headers: {
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      });
     } catch (parseError) {
       console.error("JSON Parse Error:", {
         error: parseError,

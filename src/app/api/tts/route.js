@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 const ELEVEN_LABS_API_KEY = process.env.ELEVEN_LABS_API_KEY;
 const ELEVEN_LABS_VOICE_IDS = {
   en: "21m00Tcm4TlvDq8ikWAM",
-  ja: "21m00Tcm4TlvDq8ikWAM",
-  es: "TxGEqnHWrfWFTfGW9XjX",
-  fr: "fr-Vwa4hX",
+  ja: "8EkOjt4xTPGMclNlh1pk",
+  es: "IoWn77TsmQnza94sYlfg",
+  fr: "AnvlJBAqSLDzEevYr9Ap",
   de: "de-X0Ia9t",
   zh: "zh-W3p3B4",
   ko: "ko-A5p6X8",
