@@ -52,7 +52,7 @@ export async function POST(req) {
           );
         }
 
-        // Translate the text
+        // Updated prompt to return ONLY the translation
         const prompt = `
 You are a bilingual translator between English and Japanese.
 If the input text is in Japanese, translate it into natural English. 
@@ -91,6 +91,7 @@ Do not include the detected language or any other information - just the clean t
 
         const openAIData = await openAIResponse.json();
         const translatedText = openAIData.choices[0].message.content;
+
         console.log(`Translation Output:\n${translatedText}`);
 
         // Detect if the output is English or Japanese for voice
@@ -102,11 +103,14 @@ Do not include the detected language or any other information - just the clean t
         const language = isEnglish ? "en" : "ja";
 
         // If this is a voice request, generate the audio
-        let audioUrl = null;
+        let audioInfo = null;
         if (isVoiceRequest) {
           try {
             console.log(`Generating voice for language: ${language}`);
-            audioUrl = await generateAudio(translatedText, language);
+            audioInfo = await generateAudio(translatedText, language);
+            console.log(
+              `Audio generated successfully with URL: ${audioInfo.url}`
+            );
           } catch (error) {
             console.error("Error generating audio:", error);
             // Continue even if audio generation fails
@@ -129,11 +133,11 @@ Do not include the detected language or any other information - just the clean t
         messages.push({ type: "text", text: translatedText });
 
         // If this is a voice request and we have an audio URL, add it as an audio message
-        if (isVoiceRequest && audioUrl) {
+        if (isVoiceRequest && audioInfo) {
           messages.push({
             type: "audio",
-            originalContentUrl: audioUrl,
-            duration: 60000, // Set a default duration of 60 seconds
+            originalContentUrl: audioInfo.url,
+            duration: audioInfo.duration,
           });
         }
 
@@ -176,7 +180,7 @@ Do not include the detected language or any other information - just the clean t
   }
 }
 
-// Generate audio from text
+// Generate audio from text using ElevenLabs and upload to LINE Content API
 async function generateAudio(text, language) {
   const ELEVEN_LABS_API_KEY = process.env.ELEVEN_LABS_API_KEY;
   const ELEVEN_LABS_VOICE_IDS = {
@@ -214,9 +218,12 @@ async function generateAudio(text, language) {
     output_format: "mp3_44100_128",
   });
 
-  // For LINE, we need to host the audio file and provide a URL
-  // We'll use a temporary solution by uploading to a file hosting service
-  // In a production environment, you'd want to store this in your own cloud storage
+  console.log(
+    `Generating audio for text: "${processedText.substring(
+      0,
+      50
+    )}..." in language: ${language}`
+  );
 
   // First, generate the audio with ElevenLabs
   const response = await fetch(
@@ -238,32 +245,59 @@ async function generateAudio(text, language) {
     throw new Error(errorData.error?.message || "Error from Eleven Labs API");
   }
 
-  // Get the audio data
-  const audioBuffer = await response.arrayBuffer();
+  // Get the audio data as a Buffer (important for binary uploads)
+  const arrayBuffer = await response.arrayBuffer();
+  const audioBuffer = Buffer.from(arrayBuffer);
+  console.log(`Received audio data, size: ${audioBuffer.length} bytes`);
 
-  // Now we need to upload this audio to a publicly accessible URL
-  // For demonstration, we'll use a file hosting service that accepts direct uploads
-  // NOTE: In a production environment, you should use your own storage solution like AWS S3, Google Cloud Storage, etc.
+  // Calculate approximate duration (8000 bytes ≈ 1 second for MP3 at 128kbps)
+  // This is a rough estimate - adjust the divisor based on your testing
+  const estimatedDuration = Math.max(
+    Math.ceil(audioBuffer.length / 8000) * 1000,
+    1000
+  );
+  console.log(`Estimated audio duration: ${estimatedDuration}ms`);
 
-  // For this example, we'll use transfer.sh as a temporary solution
-  const audioBlob = new Blob([audioBuffer], { type: "audio/mpeg" });
-  const formData = new FormData();
-  formData.append("file", audioBlob, "audio.mp3");
-
-  const uploadResponse = await fetch("https://transfer.sh/", {
-    method: "POST",
-    body: formData,
-  });
+  // Upload the audio directly to LINE's servers
+  console.log("Uploading audio to LINE Content API...");
+  const uploadResponse = await fetch(
+    "https://api-data.line.me/v2/bot/audiomessage/upload",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "audio/mpeg",
+        Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+        "Content-Length": audioBuffer.length.toString(),
+      },
+      body: audioBuffer,
+    }
+  );
 
   if (!uploadResponse.ok) {
-    throw new Error("Failed to upload audio file");
+    try {
+      const errorText = await uploadResponse.text();
+      console.error("LINE Upload API Error:", errorText);
+    } catch (e) {
+      console.error("Could not parse LINE Upload API error response");
+    }
+    throw new Error(
+      `Failed to upload audio to LINE: ${uploadResponse.status} ${uploadResponse.statusText}`
+    );
   }
 
-  // Get the URL where the file was uploaded
-  const audioUrl = await uploadResponse.text();
-  console.log(`Audio uploaded to: ${audioUrl}`);
+  try {
+    const uploadData = await uploadResponse.json();
+    console.log("LINE Audio upload successful:", uploadData);
 
-  return audioUrl.trim();
+    // Return both the URL and the estimated duration
+    return {
+      url: uploadData.url,
+      duration: estimatedDuration,
+    };
+  } catch (error) {
+    console.error("Failed to parse LINE upload response:", error);
+    throw new Error("Invalid response from LINE Content API");
+  }
 }
 
 // Signature verification function
