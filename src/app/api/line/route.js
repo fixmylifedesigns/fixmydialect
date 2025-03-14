@@ -10,13 +10,11 @@ export async function POST(req) {
     const signature = req.headers.get("x-line-signature");
 
     // Verify signature in production
-    /*
+
     if (!verifySignature(rawBody, signature)) {
       console.error("Invalid signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
-    */
-
     // Parse JSON after verification
     const body = JSON.parse(rawBody);
     console.log("Received Request:", JSON.stringify(body, null, 2));
@@ -198,12 +196,6 @@ function verifySignature(body, signature) {
     console.error("Signature verification error:", error);
     return false;
   }
-}
-
-// Verify signature in production
-if (!verifySignature(rawBody, signature)) {
-  console.error("Invalid signature");
-  return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
 }
 
 export async function OPTIONS() {
