@@ -40,8 +40,8 @@ export async function POST(req) {
         // Check if this is a voice request
         const isVoiceRequest = userMessage.toLowerCase().startsWith("voice-");
         // If it's a voice request, remove the "voice-" prefix
-        const textToProcess = isVoiceRequest
-          ? userMessage.substring(6).trim()
+        const textToProcess = isVoiceRequest 
+          ? userMessage.substring(6).trim() 
           : userMessage;
 
         if (!process.env.OPENAI_API_KEY) {
@@ -95,25 +95,26 @@ Do not include the detected language or any other information - just the clean t
         console.log(`Translation Output:\n${translatedText}`);
 
         // Detect if the output is English or Japanese for voice
-        const isEnglish =
-          /^[A-Za-z0-9\s\W]+$/.test(translatedText) &&
-          !/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/.test(
-            translatedText
-          );
+        const isEnglish = /^[A-Za-z0-9\s\W]+$/.test(translatedText) && 
+                          !/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/.test(translatedText);
         const language = isEnglish ? "en" : "ja";
 
         // If this is a voice request, generate the audio
         let audioInfo = null;
+        let audioError = null;
         if (isVoiceRequest) {
           try {
             console.log(`Generating voice for language: ${language}`);
+            // Use a hard-coded testing URL for initial testing if needed
+            // audioInfo = { 
+            //   url: "https://example.com/test-audio.mp3", 
+            //   duration: 3000 
+            // };
             audioInfo = await generateAudio(translatedText, language);
-            console.log(
-              `Audio generated successfully with URL: ${audioInfo.url}`
-            );
+            console.log(`Audio generated successfully with URL: ${audioInfo.url}`);
           } catch (error) {
             console.error("Error generating audio:", error);
-            // Continue even if audio generation fails
+            audioError = `Error generating audio: ${error.message}`;
           }
         }
 
@@ -134,10 +135,27 @@ Do not include the detected language or any other information - just the clean t
 
         // If this is a voice request and we have an audio URL, add it as an audio message
         if (isVoiceRequest && audioInfo) {
-          messages.push({
-            type: "audio",
-            originalContentUrl: audioInfo.url,
-            duration: audioInfo.duration,
+          try {
+            console.log(`Adding audio message with URL: ${audioInfo.url} and duration: ${audioInfo.duration}`);
+            messages.push({
+              type: "audio",
+              originalContentUrl: audioInfo.url,
+              duration: audioInfo.duration
+            });
+          } catch (err) {
+            console.error("Error adding audio message:", err);
+            messages.push({ 
+              type: "text", 
+              text: `Failed to add audio message: ${err.message}` 
+            });
+          }
+        }
+        
+        // Include error message if audio generation failed
+        if (isVoiceRequest && audioError) {
+          messages.push({ 
+            type: "text", 
+            text: audioError 
           });
         }
 
@@ -182,6 +200,10 @@ Do not include the detected language or any other information - just the clean t
 
 // Generate audio from text using ElevenLabs and upload to LINE Content API
 async function generateAudio(text, language) {
+  if (!process.env.ELEVEN_LABS_API_KEY) {
+    throw new Error("ELEVEN_LABS_API_KEY is not set in environment variables");
+  }
+
   const ELEVEN_LABS_API_KEY = process.env.ELEVEN_LABS_API_KEY;
   const ELEVEN_LABS_VOICE_IDS = {
     en: "21m00Tcm4TlvDq8ikWAM",
@@ -208,9 +230,16 @@ async function generateAudio(text, language) {
     throw new Error("No text provided for audio generation");
   }
 
-  const voiceId =
-    ELEVEN_LABS_VOICE_IDS[language] || ELEVEN_LABS_VOICE_IDS["default"];
-  const processedText = preprocessText(text, language);
+  // Make sure text isn't too long for ElevenLabs
+  const maxLength = 300;
+  let processedText = text;
+  if (text.length > maxLength) {
+    processedText = text.substring(0, maxLength) + "...";
+    console.log(`Text truncated from ${text.length} to ${maxLength} characters`);
+  }
+  
+  const voiceId = ELEVEN_LABS_VOICE_IDS[language] || ELEVEN_LABS_VOICE_IDS["default"];
+  processedText = preprocessText(processedText, language);
 
   const requestBody = JSON.stringify({
     text: processedText,
@@ -218,85 +247,136 @@ async function generateAudio(text, language) {
     output_format: "mp3_44100_128",
   });
 
-  console.log(
-    `Generating audio for text: "${processedText.substring(
-      0,
-      50
-    )}..." in language: ${language}`
-  );
+  console.log(`Generating audio for text: "${processedText.substring(0, 50)}..." in language: ${language}`);
+  console.log(`Using voice ID: ${voiceId}`);
 
-  // First, generate the audio with ElevenLabs
-  const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "xi-api-key": ELEVEN_LABS_API_KEY,
-        "Content-Length": Buffer.byteLength(requestBody).toString(),
-      },
-      body: requestBody,
+  try {
+    // First, generate the audio with ElevenLabs
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "xi-api-key": ELEVEN_LABS_API_KEY,
+          "Content-Length": Buffer.byteLength(requestBody).toString(),
+        },
+        body: requestBody,
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Eleven Labs API Error:", errorText);
+      try {
+        const errorData = JSON.parse(errorText);
+        throw new Error(errorData.detail?.message || errorData.detail || "Error from Eleven Labs API");
+      } catch (e) {
+        throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
+      }
     }
-  );
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    console.error("Eleven Labs API Error:", errorData);
-    throw new Error(errorData.error?.message || "Error from Eleven Labs API");
-  }
+    // Get the audio data as a Buffer (important for binary uploads)
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = Buffer.from(arrayBuffer);
+    console.log(`Received audio data, size: ${audioBuffer.length} bytes`);
 
-  // Get the audio data as a Buffer (important for binary uploads)
-  const arrayBuffer = await response.arrayBuffer();
-  const audioBuffer = Buffer.from(arrayBuffer);
-  console.log(`Received audio data, size: ${audioBuffer.length} bytes`);
+    if (audioBuffer.length === 0) {
+      throw new Error("Received empty audio data from ElevenLabs");
+    }
 
-  // Calculate approximate duration (8000 bytes ≈ 1 second for MP3 at 128kbps)
-  // This is a rough estimate - adjust the divisor based on your testing
-  const estimatedDuration = Math.max(
-    Math.ceil(audioBuffer.length / 8000) * 1000,
-    1000
-  );
-  console.log(`Estimated audio duration: ${estimatedDuration}ms`);
+    // Calculate approximate duration (8000 bytes ≈ 1 second for MP3 at 128kbps)
+    // This is a rough estimate - adjust the divisor based on your testing
+    const estimatedDuration = Math.max(Math.ceil(audioBuffer.length / 8000) * 1000, 1000);
+    console.log(`Estimated audio duration: ${estimatedDuration}ms`);
 
-  // Upload the audio directly to LINE's servers
-  console.log("Uploading audio to LINE Content API...");
-  const uploadResponse = await fetch(
-    "https://api-data.line.me/v2/bot/audiomessage/upload",
-    {
+    // For testing, you can save the audio to a file
+    // For production, we'll upload directly to LINE
+    
+    // Try using an alternative approach - Upload to a public service instead
+    // This is a temporary solution for testing
+    if (process.env.USE_ALTERNATIVE_HOSTING === "true") {
+      console.log("Using alternative audio hosting...");
+      try {
+        // Use a temporary file hosting service
+        const formData = new FormData();
+        const audioBlob = new Blob([audioBuffer], { type: "audio/mpeg" });
+        formData.append('file', audioBlob, 'audio.mp3');
+        
+        const uploadResponse = await fetch('https://transfer.sh/', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload audio file to alternative host');
+        }
+        
+        const audioUrl = await uploadResponse.text();
+        console.log(`Audio uploaded to alternative host: ${audioUrl}`);
+        
+        return { 
+          url: audioUrl.trim(), 
+          duration: estimatedDuration 
+        };
+      } catch (error) {
+        console.error("Alternative hosting failed:", error);
+        throw new Error(`Alternative hosting failed: ${error.message}`);
+      }
+    }
+
+    // Upload the audio directly to LINE's servers
+    console.log("Uploading audio to LINE Content API...");
+    console.log(`LINE_CHANNEL_ACCESS_TOKEN available: ${!!process.env.LINE_CHANNEL_ACCESS_TOKEN}`);
+    
+    const uploadResponse = await fetch("https://api-data.line.me/v2/bot/audiomessage/upload", {
       method: "POST",
       headers: {
         "Content-Type": "audio/mpeg",
-        Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+        "Authorization": `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
         "Content-Length": audioBuffer.length.toString(),
       },
       body: audioBuffer,
-    }
-  );
+    });
 
-  if (!uploadResponse.ok) {
+    console.log(`LINE upload response status: ${uploadResponse.status}`);
+    
+    if (!uploadResponse.ok) {
+      let errorMessage = `Failed to upload audio to LINE: ${uploadResponse.status} ${uploadResponse.statusText}`;
+      try {
+        const errorText = await uploadResponse.text();
+        console.error("LINE Upload API Error:", errorText);
+        errorMessage += ` - ${errorText}`;
+      } catch (e) {
+        console.error("Could not parse LINE Upload API error response");
+      }
+      throw new Error(errorMessage);
+    }
+
+    let uploadData;
     try {
-      const errorText = await uploadResponse.text();
-      console.error("LINE Upload API Error:", errorText);
-    } catch (e) {
-      console.error("Could not parse LINE Upload API error response");
+      const responseText = await uploadResponse.text();
+      console.log("LINE Upload API raw response:", responseText);
+      uploadData = JSON.parse(responseText);
+    } catch (error) {
+      console.error("Failed to parse LINE upload response:", error);
+      throw new Error(`Invalid response from LINE Content API: ${error.message}`);
     }
-    throw new Error(
-      `Failed to upload audio to LINE: ${uploadResponse.status} ${uploadResponse.statusText}`
-    );
-  }
 
-  try {
-    const uploadData = await uploadResponse.json();
     console.log("LINE Audio upload successful:", uploadData);
-
+    
+    if (!uploadData.url) {
+      throw new Error("LINE did not return a URL for the uploaded audio");
+    }
+    
     // Return both the URL and the estimated duration
-    return {
-      url: uploadData.url,
-      duration: estimatedDuration,
+    return { 
+      url: uploadData.url, 
+      duration: estimatedDuration 
     };
   } catch (error) {
-    console.error("Failed to parse LINE upload response:", error);
-    throw new Error("Invalid response from LINE Content API");
+    console.error("Audio generation/upload failed:", error);
+    throw error;
   }
 }
 
