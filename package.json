@@ -13,8 +13,6 @@
     "@firebase/functions": "^0.12.3",
     "@heroicons/react": "^2.2.0",
     "@invertase/firestore-stripe-payments": "^0.0.7",
-    "axios": "^1.8.3",
-    "dotenv": "^16.4.7",
     "firebase": "^11.4.0",
     "firebase-functions": "^6.3.2",
     "lucide-react": "^0.477.0",
