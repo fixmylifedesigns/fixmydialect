@@ -45,12 +45,14 @@ export async function POST(req) {
           );
         }
 
-        // ✅ Combined Prompt for Language Detection & Translation
+        // Updated prompt to return ONLY the translation
         const prompt = `
-You are a bilingual assistant. If the input text is in Japanese, translate it into natural English. 
+You are a bilingual translator between English and Japanese.
+If the input text is in Japanese, translate it into natural English. 
 If the input text is in English, translate it into natural Japanese. 
-Also, indicate the detected language. Format your response as: [Your Translation]
-        `;
+Important: Only return the translated text without any additional notes, comments, or explanations.
+Do not include the detected language or any other information - just the clean translation.
+`;
 
         const openAIResponse = await fetch(
           "https://api.openai.com/v1/chat/completions",
@@ -133,7 +135,7 @@ Also, indicate the detected language. Format your response as: [Your Translation
   }
 }
 
-// ✅ Signature verification function
+// Signature verification function
 function verifySignature(body, signature) {
   try {
     const channelSecret = process.env.LINE_CHANNEL_SECRET;
@@ -146,7 +148,7 @@ function verifySignature(body, signature) {
   }
 }
 
-// ✅ Handle OPTIONS requests (for CORS)
+// Handle OPTIONS requests (for CORS)
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
