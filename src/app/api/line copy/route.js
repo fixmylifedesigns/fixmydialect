@@ -37,13 +37,6 @@ export async function POST(req) {
         console.log(`User Message: ${userMessage}`);
         console.log(`Reply Token: ${replyToken}`);
 
-        // Check if this is a voice request
-        const isVoiceRequest = userMessage.toLowerCase().startsWith("voice-");
-        // If it's a voice request, remove the "voice-" prefix
-        const textToProcess = isVoiceRequest
-          ? userMessage.substring(6).trim()
-          : userMessage;
-
         if (!process.env.OPENAI_API_KEY) {
           console.error("OpenAI API key is missing");
           return NextResponse.json(
@@ -52,7 +45,7 @@ export async function POST(req) {
           );
         }
 
-        // Translate the text
+        // Updated prompt to return ONLY the translation
         const prompt = `
 You are a bilingual translator between English and Japanese.
 If the input text is in Japanese, translate it into natural English. 
@@ -73,7 +66,7 @@ Do not include the detected language or any other information - just the clean t
               model: "gpt-3.5-turbo",
               messages: [
                 { role: "system", content: prompt },
-                { role: "user", content: textToProcess },
+                { role: "user", content: userMessage },
               ],
               temperature: 0.3,
             }),
@@ -91,27 +84,8 @@ Do not include the detected language or any other information - just the clean t
 
         const openAIData = await openAIResponse.json();
         const translatedText = openAIData.choices[0].message.content;
+
         console.log(`Translation Output:\n${translatedText}`);
-
-        // Detect if the output is English or Japanese for voice
-        const isEnglish =
-          /^[A-Za-z0-9\s\W]+$/.test(translatedText) &&
-          !/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/.test(
-            translatedText
-          );
-        const language = isEnglish ? "en" : "ja";
-
-        // If this is a voice request, generate the audio
-        let audioUrl = null;
-        if (isVoiceRequest) {
-          try {
-            console.log(`Generating voice for language: ${language}`);
-            audioUrl = await generateAudio(translatedText, language);
-          } catch (error) {
-            console.error("Error generating audio:", error);
-            // Continue even if audio generation fails
-          }
-        }
 
         // Send reply to LINE user
         if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
@@ -120,21 +94,6 @@ Do not include the detected language or any other information - just the clean t
             { error: "LINE access token is missing" },
             { status: 500 }
           );
-        }
-
-        // Prepare the messages to send back
-        const messages = [];
-
-        // Always include the translated text
-        messages.push({ type: "text", text: translatedText });
-
-        // If this is a voice request and we have an audio URL, add it as an audio message
-        if (isVoiceRequest && audioUrl) {
-          messages.push({
-            type: "audio",
-            originalContentUrl: audioUrl,
-            duration: 60000, // Set a default duration of 60 seconds
-          });
         }
 
         const lineResponse = await fetch(
@@ -147,7 +106,7 @@ Do not include the detected language or any other information - just the clean t
             },
             body: JSON.stringify({
               replyToken,
-              messages: messages,
+              messages: [{ type: "text", text: translatedText }],
             }),
           }
         );
@@ -174,96 +133,6 @@ Do not include the detected language or any other information - just the clean t
       { status: 500 }
     );
   }
-}
-
-// Generate audio from text
-async function generateAudio(text, language) {
-  const ELEVEN_LABS_API_KEY = process.env.ELEVEN_LABS_API_KEY;
-  const ELEVEN_LABS_VOICE_IDS = {
-    en: "21m00Tcm4TlvDq8ikWAM",
-    ja: "8EkOjt4xTPGMclNlh1pk",
-    es: "IoWn77TsmQnza94sYlfg",
-    fr: "AnvlJBAqSLDzEevYr9Ap",
-    de: "de-X0Ia9t",
-    zh: "zh-W3p3B4",
-    ko: "ko-A5p6X8",
-    it: "it-Y7b8H9",
-    pt: "pt-X4k2L7",
-    ru: "ru-M9p2K3",
-    default: "21m00Tcm4TlvDq8ikWAM",
-  };
-
-  const preprocessText = (text, language) => {
-    if (language === "es") {
-      return text.normalize("NFD").replace(/[̀-ͯ]/g, ""); // Removes accents
-    }
-    return text;
-  };
-
-  if (!text) {
-    throw new Error("No text provided for audio generation");
-  }
-
-  const voiceId =
-    ELEVEN_LABS_VOICE_IDS[language] || ELEVEN_LABS_VOICE_IDS["default"];
-  const processedText = preprocessText(text, language);
-
-  const requestBody = JSON.stringify({
-    text: processedText,
-    model_id: "eleven_multilingual_v2",
-    output_format: "mp3_44100_128",
-  });
-
-  // For LINE, we need to host the audio file and provide a URL
-  // We'll use a temporary solution by uploading to a file hosting service
-  // In a production environment, you'd want to store this in your own cloud storage
-
-  // First, generate the audio with ElevenLabs
-  const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "xi-api-key": ELEVEN_LABS_API_KEY,
-        "Content-Length": Buffer.byteLength(requestBody).toString(),
-      },
-      body: requestBody,
-    }
-  );
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    console.error("Eleven Labs API Error:", errorData);
-    throw new Error(errorData.error?.message || "Error from Eleven Labs API");
-  }
-
-  // Get the audio data
-  const audioBuffer = await response.arrayBuffer();
-
-  // Now we need to upload this audio to a publicly accessible URL
-  // For demonstration, we'll use a file hosting service that accepts direct uploads
-  // NOTE: In a production environment, you should use your own storage solution like AWS S3, Google Cloud Storage, etc.
-
-  // For this example, we'll use transfer.sh as a temporary solution
-  const audioBlob = new Blob([audioBuffer], { type: "audio/mpeg" });
-  const formData = new FormData();
-  formData.append("file", audioBlob, "audio.mp3");
-
-  const uploadResponse = await fetch("https://transfer.sh/", {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!uploadResponse.ok) {
-    throw new Error("Failed to upload audio file");
-  }
-
-  // Get the URL where the file was uploaded
-  const audioUrl = await uploadResponse.text();
-  console.log(`Audio uploaded to: ${audioUrl}`);
-
-  return audioUrl.trim();
 }
 
 // Signature verification function
