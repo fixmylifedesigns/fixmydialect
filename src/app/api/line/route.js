@@ -23,7 +23,10 @@ export async function POST(req) {
 
     if (!events || events.length === 0) {
       console.error("No events received");
-      return NextResponse.json({ error: "No events received" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No events received" },
+        { status: 400 }
+      );
     }
 
     for (const event of events) {
@@ -36,39 +39,45 @@ export async function POST(req) {
 
         if (!process.env.OPENAI_API_KEY) {
           console.error("OpenAI API key is missing");
-          return NextResponse.json({ error: "OpenAI API key is missing" }, { status: 500 });
+          return NextResponse.json(
+            { error: "OpenAI API key is missing" },
+            { status: 500 }
+          );
         }
 
         // ✅ Combined Prompt for Language Detection & Translation
         const prompt = `
 You are a bilingual assistant. If the input text is in Japanese, translate it into natural English. 
 If the input text is in English, translate it into natural Japanese. 
-Also, indicate the detected language. Format your response as:
-
-Translation: [Your Translation]
-Detected Language: [English or Japanese]
+Also, indicate the detected language. Format your response as: [Your Translation]
         `;
 
-        const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: "gpt-3.5-turbo",
-            messages: [
-              { role: "system", content: prompt },
-              { role: "user", content: userMessage },
-            ],
-            temperature: 0.3,
-          }),
-        });
+        const openAIResponse = await fetch(
+          "https://api.openai.com/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: "gpt-3.5-turbo",
+              messages: [
+                { role: "system", content: prompt },
+                { role: "user", content: userMessage },
+              ],
+              temperature: 0.3,
+            }),
+          }
+        );
 
         if (!openAIResponse.ok) {
           const errorText = await openAIResponse.text();
           console.error("Translation error:", errorText);
-          return NextResponse.json({ error: "Failed to translate message", details: errorText }, { status: 500 });
+          return NextResponse.json(
+            { error: "Failed to translate message", details: errorText },
+            { status: 500 }
+          );
         }
 
         const openAIData = await openAIResponse.json();
@@ -79,25 +88,34 @@ Detected Language: [English or Japanese]
         // Send reply to LINE user
         if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
           console.error("LINE access token is missing");
-          return NextResponse.json({ error: "LINE access token is missing" }, { status: 500 });
+          return NextResponse.json(
+            { error: "LINE access token is missing" },
+            { status: 500 }
+          );
         }
 
-        const lineResponse = await fetch("https://api.line.me/v2/bot/message/reply", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
-          },
-          body: JSON.stringify({
-            replyToken,
-            messages: [{ type: "text", text: translatedText }],
-          }),
-        });
+        const lineResponse = await fetch(
+          "https://api.line.me/v2/bot/message/reply",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+            },
+            body: JSON.stringify({
+              replyToken,
+              messages: [{ type: "text", text: translatedText }],
+            }),
+          }
+        );
 
         if (!lineResponse.ok) {
           const errorText = await lineResponse.text();
           console.error("LINE API Error:", errorText);
-          return NextResponse.json({ error: "Failed to send message to LINE", details: errorText }, { status: 500 });
+          return NextResponse.json(
+            { error: "Failed to send message to LINE", details: errorText },
+            { status: 500 }
+          );
         }
 
         console.log("Reply sent to LINE successfully.");
@@ -108,7 +126,10 @@ Detected Language: [English or Japanese]
   } catch (error) {
     console.error("LINE Webhook Error:", error.message);
     console.error(error.stack);
-    return NextResponse.json({ error: "Internal Server Error", message: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error", message: error.message },
+      { status: 500 }
+    );
   }
 }
 
@@ -132,7 +153,8 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, x-line-signature",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, x-line-signature",
     },
   });
 }
