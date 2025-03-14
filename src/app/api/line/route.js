@@ -9,12 +9,12 @@ export async function POST(req) {
     const rawBody = await req.text();
     const signature = req.headers.get("x-line-signature");
 
-    // Verify signature in production
-
+    // Verify signature
     if (!verifySignature(rawBody, signature)) {
       console.error("Invalid signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
+
     // Parse JSON after verification
     const body = JSON.parse(rawBody);
     console.log("Received Request:", JSON.stringify(body, null, 2));
@@ -23,10 +23,7 @@ export async function POST(req) {
 
     if (!events || events.length === 0) {
       console.error("No events received");
-      return NextResponse.json(
-        { error: "No events received" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No events received" }, { status: 400 });
     }
 
     for (const event of events) {
@@ -39,135 +36,68 @@ export async function POST(req) {
 
         if (!process.env.OPENAI_API_KEY) {
           console.error("OpenAI API key is missing");
-          return NextResponse.json(
-            { error: "OpenAI API key is missing" },
-            { status: 500 }
-          );
+          return NextResponse.json({ error: "OpenAI API key is missing" }, { status: 500 });
         }
 
-        // First, detect the language
-        const detectionResponse = await fetch(
-          "https://api.openai.com/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-            },
-            body: JSON.stringify({
-              model: "gpt-3.5-turbo",
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    "You are a language detector. You only respond with 'english' or 'japanese'. Nothing else.",
-                },
-                {
-                  role: "user",
-                  content: `What language is this? "${userMessage}"`,
-                },
-              ],
-              temperature: 0.1,
-            }),
-          }
-        );
+        // ✅ Combined Prompt for Language Detection & Translation
+        const prompt = `
+You are a bilingual assistant. If the input text is in Japanese, translate it into natural English. 
+If the input text is in English, translate it into natural Japanese. 
+Also, indicate the detected language. Format your response as:
 
-        if (!detectionResponse.ok) {
-          const errorText = await detectionResponse.text();
-          console.error("Language detection error:", errorText);
-          return NextResponse.json(
-            { error: "Failed to detect language", details: errorText },
-            { status: 500 }
-          );
-        }
+Translation: [Your Translation]
+Detected Language: [English or Japanese]
+        `;
 
-        const detectionData = await detectionResponse.json();
-        const detectedLanguage = detectionData.choices[0].message.content
-          .toLowerCase()
-          .trim();
-        console.log(`Detected language: ${detectedLanguage}`);
+        const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-3.5-turbo",
+            messages: [
+              { role: "system", content: prompt },
+              { role: "user", content: userMessage },
+            ],
+            temperature: 0.3,
+          }),
+        });
 
-        // Determine target language and construct translation prompt
-        let systemPrompt;
-        let targetLanguage;
-
-        if (detectedLanguage.includes("japanese")) {
-          systemPrompt =
-            "You are a Japanese to English translator. Translate the Japanese text to natural, fluent English.";
-          targetLanguage = "English";
-        } else {
-          systemPrompt =
-            "You are an English to Japanese translator. Translate the English text to natural, fluent Japanese.";
-          targetLanguage = "Japanese";
-        }
-
-        // Perform the translation
-        const translationResponse = await fetch(
-          "https://api.openai.com/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-            },
-            body: JSON.stringify({
-              model: "gpt-3.5-turbo",
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userMessage },
-              ],
-              temperature: 0.3,
-            }),
-          }
-        );
-
-        if (!translationResponse.ok) {
-          const errorText = await translationResponse.text();
+        if (!openAIResponse.ok) {
+          const errorText = await openAIResponse.text();
           console.error("Translation error:", errorText);
-          return NextResponse.json(
-            { error: "Failed to translate message", details: errorText },
-            { status: 500 }
-          );
+          return NextResponse.json({ error: "Failed to translate message", details: errorText }, { status: 500 });
         }
 
-        const translationData = await translationResponse.json();
-        const translatedText = translationData.choices[0].message.content;
+        const openAIData = await openAIResponse.json();
+        const translatedText = openAIData.choices[0].message.content;
 
-        // Format the response to show both the translation and original text
-        const replyText = `${translatedText}\n\n(${detectedLanguage} → ${targetLanguage})`;
-        console.log(`Translation: ${translatedText}`);
+        console.log(`Translation Output:\n${translatedText}`);
 
         // Send reply to LINE user
         if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
           console.error("LINE access token is missing");
-          return NextResponse.json(
-            { error: "LINE access token is missing" },
-            { status: 500 }
-          );
+          return NextResponse.json({ error: "LINE access token is missing" }, { status: 500 });
         }
 
-        const lineResponse = await fetch(
-          "https://api.line.me/v2/bot/message/reply",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
-            },
-            body: JSON.stringify({
-              replyToken,
-              messages: [{ type: "text", text: replyText }],
-            }),
-          }
-        );
+        const lineResponse = await fetch("https://api.line.me/v2/bot/message/reply", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+          },
+          body: JSON.stringify({
+            replyToken,
+            messages: [{ type: "text", text: translatedText }],
+          }),
+        });
 
         if (!lineResponse.ok) {
           const errorText = await lineResponse.text();
           console.error("LINE API Error:", errorText);
-          return NextResponse.json(
-            { error: "Failed to send message to LINE", details: errorText },
-            { status: 500 }
-          );
+          return NextResponse.json({ error: "Failed to send message to LINE", details: errorText }, { status: 500 });
         }
 
         console.log("Reply sent to LINE successfully.");
@@ -178,14 +108,11 @@ export async function POST(req) {
   } catch (error) {
     console.error("LINE Webhook Error:", error.message);
     console.error(error.stack);
-    return NextResponse.json(
-      { error: "Internal Server Error", message: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal Server Error", message: error.message }, { status: 500 });
   }
 }
 
-// Signature verification function
+// ✅ Signature verification function
 function verifySignature(body, signature) {
   try {
     const channelSecret = process.env.LINE_CHANNEL_SECRET;
@@ -198,14 +125,14 @@ function verifySignature(body, signature) {
   }
 }
 
+// ✅ Handle OPTIONS requests (for CORS)
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, x-line-signature",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, x-line-signature",
     },
   });
 }
