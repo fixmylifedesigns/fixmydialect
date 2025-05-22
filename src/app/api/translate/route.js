@@ -169,6 +169,7 @@ export async function POST(request) {
             "no-store, no-cache, must-revalidate, proxy-revalidate",
           Pragma: "no-cache",
           Expires: "0",
+          "Access-Control-Allow-Origin": "http://localhost:3000",
         },
       });
     } catch (parseError) {
