@@ -17,17 +17,38 @@ const ELEVEN_LABS_VOICE_IDS = {
 
 const preprocessText = (text, language) => {
   if (language === "es") {
-    return text.normalize("NFD").replace(/[̀-ͯ]/g, ""); // Removes accents
+    return text.normalize("NFD").replace(/[̀-ͯ]/g, "");
   }
   return text;
 };
+
+// ✅ Handle CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "http://localhost:3000",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Max-Age": "86400",
+    },
+  });
+}
 
 export async function POST(request) {
   try {
     const { text, language } = await request.json();
 
     if (!text) {
-      return NextResponse.json({ error: "No text provided" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No text provided" },
+        {
+          status: 400,
+          headers: {
+            "Access-Control-Allow-Origin": "http://localhost:3000",
+          },
+        }
+      );
     }
 
     const voiceId =
@@ -47,7 +68,7 @@ export async function POST(request) {
         headers: {
           "Content-Type": "application/json",
           "xi-api-key": ELEVEN_LABS_API_KEY,
-          "Content-Length": Buffer.byteLength(requestBody).toString(), // ✅ Fix: Add Content-Length
+          "Content-Length": Buffer.byteLength(requestBody).toString(),
         },
         body: requestBody,
       }
@@ -58,22 +79,34 @@ export async function POST(request) {
       console.error("Eleven Labs API Error:", errorData);
       return NextResponse.json(
         { error: errorData.error?.message || "Error from Eleven Labs API" },
-        { status: response.status }
+        {
+          status: response.status,
+          headers: {
+            "Access-Control-Allow-Origin": "http://localhost:3000",
+          },
+        }
       );
     }
 
     const audioBuffer = await response.arrayBuffer();
     return new Response(audioBuffer, {
+      status: 200,
       headers: {
         "Content-Type": "audio/mpeg",
         "Content-Length": audioBuffer.byteLength.toString(),
+        "Access-Control-Allow-Origin": "http://localhost:3000", // ✅ CORS header for binary response
       },
     });
   } catch (error) {
     console.error("TTS API Error:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "http://localhost:3000",
+        },
+      }
     );
   }
 }
