@@ -4,15 +4,24 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "prisma db seed",
+    "prisma:reset": "prisma migrate reset"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@firebase/app": "^0.11.2",
     "@firebase/functions": "^0.12.3",
     "@heroicons/react": "^2.2.0",
     "@invertase/firestore-stripe-payments": "^0.0.7",
+    "@prisma/client": "^6.5.0",
     "crypto": "^1.0.1",
     "firebase": "^11.4.0",
     "firebase-functions": "^6.3.2",
@@ -20,6 +29,7 @@
     "next": "^15.2.0",
     "postcss": "^8.5.3",
     "postcss-import": "^16.1.0",
+    "prisma": "^6.5.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "stripe": "^17.7.0"
@@ -29,6 +39,7 @@
     "@tailwindcss/postcss": "^4.0.9",
     "eslint": "^9",
     "eslint-config-next": "15.2.0",
-    "tailwindcss": "^4.0.9"
+    "tailwindcss": "^4.0.9",
+    "ts-node": "^10.9.2"
   }
 }

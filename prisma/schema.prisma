@@ -1,0 +1,91 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  firebaseId    String    @unique // Firebase UID
+  email         String    @unique
+  name          String?
+  phone         String?
+  lineId        String?
+  whatsappId    String?
+  credits       Int       @default(50) // Initial credits
+  subscription  Subscription?
+  payments      Payment[]
+  businessAccounts BusinessAccount[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Subscription {
+  id         String    @id @default(uuid())
+  user       User      @relation(fields: [userId], references: [id])
+  userId     String    @unique
+  plan       Plan      @relation(fields: [planId], references: [id])
+  planId     String
+  payments   Payment[]
+  isLifetime Boolean   @default(false)
+  startDate  DateTime  @default(now())
+  endDate    DateTime?
+  status     String    @default("active") // active, expired, trial, canceled
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Plan {
+  id                   String         @id @default(uuid())
+  name                 String         @unique // "basic", "premium", "business"
+  priceMonthly         Decimal?
+  priceYearly          Decimal?
+  lifetimePrice        Decimal?
+  accessChatbots       Boolean        @default(false)
+  accessDialects       Boolean        @default(false)
+  maxSavedTranslations Int            @default(-1) // -1 = Unlimited
+  maxUsers             Int            @default(-1) // -1 = Unlimited, used for limited plans like beta
+  currentUsers         Int            @default(0)  // Tracks how many users are on this plan
+  subscriptions        Subscription[]
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+}
+
+model Payment {
+  id             String       @id @default(uuid())
+  user           User         @relation(fields: [userId], references: [id])
+  userId         String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  subscriptionId String
+  amount         Decimal
+  currency       String       @default("USD")
+  status         String       @default("pending") // pending, completed, failed
+  transactionId  String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model BusinessAccount {
+  id             String    @id @default(uuid())
+  owner          User      @relation(fields: [ownerId], references: [id])
+  ownerId        String
+  companyName    String
+  website        String?
+  lineBotId      String?
+  whatsappBotId  String?
+  lifetimeAccess Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model GlobalStats {
+  id                        String @id @default("global_stats")
+  lifetimeBusinessPurchases Int    @default(0) // Total lifetime business purchases
+  maxLifetimeBusinessPlans  Int    @default(20) // Limit of 20 lifetime purchases
+  updatedAt                 DateTime @updatedAt
+}

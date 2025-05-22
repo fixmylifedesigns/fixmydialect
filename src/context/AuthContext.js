@@ -4,9 +4,11 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChange } from "../packages/firebase/auth";
 import { setUserData } from "../packages/firebase/firestore";
+import { syncUserWithDatabase } from "@/utils/db-helpers";
 
 const AuthContext = createContext({
-  user: null,
+  user: null, // Firebase auth user
+  dbUser: null, // Prisma database user with subscription info
   loading: true,
 });
 
@@ -14,20 +16,18 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [dbUser, setDbUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // In src/context/AuthContext.js file
-  // Update the useEffect that handles auth state changes
 
   useEffect(() => {
     const unsubscribe = onAuthStateChange(async (authUser) => {
       setLoading(true);
 
       if (authUser) {
-        // Update user in state
+        // Update Firebase user in state
         setUser(authUser);
 
-        // Try to store user data in Firestore, but don't break if it fails
+        // 1. First maintain compatibility with existing Firestore data storage
         try {
           await setUserData(authUser.uid, {
             email: authUser.email,
@@ -37,12 +37,20 @@ export const AuthProvider = ({ children }) => {
           });
         } catch (error) {
           // Just log the error but continue - don't break the auth flow
-          console.error("Error updating user data:", error);
-          // This is optional - you can set a state flag if you want to show a warning somewhere
-          // setFirestoreError(true);
+          console.error("Error updating user data in Firestore:", error);
+        }
+
+        // 2. Now sync with Prisma database and store the returned database user
+        try {
+          const databaseUser = await syncUserWithDatabase(authUser);
+          setDbUser(databaseUser);
+        } catch (error) {
+          console.error("Error syncing user with Prisma database:", error);
+          // Don't prevent app from loading if DB sync fails
         }
       } else {
         setUser(null);
+        setDbUser(null);
       }
 
       setLoading(false);
@@ -52,8 +60,9 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
+  // Return both Firebase user and database user
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, dbUser, loading }}>
       {children}
     </AuthContext.Provider>
   );
