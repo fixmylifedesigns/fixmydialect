@@ -1,5 +1,17 @@
 import { NextResponse } from "next/server";
 
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "http://localhost:3000",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Max-Age": "86400",
+    },
+  });
+}
+
 export async function POST(request) {
   try {
     const {
@@ -20,6 +32,7 @@ export async function POST(request) {
           headers: {
             "Cache-Control":
               "no-store, no-cache, must-revalidate, proxy-revalidate",
+            "Access-Control-Allow-Origin": "http://localhost:3000",
           },
         }
       );
@@ -77,7 +90,7 @@ export async function POST(request) {
         "notes": "[EXPLAIN how formality was applied. For 'superior', specify how honorific speech was used. For 'stranger', mention polite forms. For 'friend', explain informal choices. If 'child', note simplifications.]"
       }
       `;
-      // GPT-4-turbo gpt-3.5-turbo
+    // GPT-4-turbo gpt-3.5-turbo
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -109,7 +122,12 @@ export async function POST(request) {
       console.error("OpenAI API Error:", data);
       return NextResponse.json(
         { error: data.error?.message || "Error from OpenAI API" },
-        { status: response.status }
+        {
+          status: response.status,
+          headers: {
+            "Access-Control-Allow-Origin": "http://localhost:3000",
+          },
+        }
       );
     }
 
@@ -118,7 +136,12 @@ export async function POST(request) {
       console.error("Unexpected API response structure:", data);
       return NextResponse.json(
         { error: "Invalid response from translation service" },
-        { status: 500 }
+        {
+          status: 500,
+          headers: {
+            "Access-Control-Allow-Origin": "http://localhost:3000",
+          },
+        }
       );
     }
 
@@ -130,7 +153,12 @@ export async function POST(request) {
         console.error("Invalid JSON response structure:", jsonResponse);
         return NextResponse.json(
           { error: "Invalid translation response format" },
-          { status: 500 }
+          {
+            status: 500,
+            headers: {
+              "Access-Control-Allow-Origin": "http://localhost:3000",
+            },
+          }
         );
       }
 
@@ -150,14 +178,24 @@ export async function POST(request) {
       });
       return NextResponse.json(
         { error: "Failed to parse translation response" },
-        { status: 500 }
+        {
+          status: 500,
+          headers: {
+            "Access-Control-Allow-Origin": "http://localhost:3000",
+          },
+        }
       );
     }
   } catch (error) {
     console.error("Server Error:", error);
     return NextResponse.json(
       { error: error.message || "Internal Server Error" },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "http://localhost:3000",
+        },
+      }
     );
   }
 }
