@@ -4,7 +4,7 @@ export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
     headers: {
-      "Access-Control-Allow-Origin": "http://localhost:3000",
+      "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
       "Access-Control-Max-Age": "86400",
@@ -32,7 +32,7 @@ export async function POST(request) {
           headers: {
             "Cache-Control":
               "no-store, no-cache, must-revalidate, proxy-revalidate",
-            "Access-Control-Allow-Origin": "http://localhost:3000",
+            "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com",
           },
         }
       );
@@ -125,7 +125,7 @@ export async function POST(request) {
         {
           status: response.status,
           headers: {
-            "Access-Control-Allow-Origin": "http://localhost:3000",
+            "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com",
           },
         }
       );
@@ -139,7 +139,7 @@ export async function POST(request) {
         {
           status: 500,
           headers: {
-            "Access-Control-Allow-Origin": "http://localhost:3000",
+            "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com",
           },
         }
       );
@@ -156,7 +156,7 @@ export async function POST(request) {
           {
             status: 500,
             headers: {
-              "Access-Control-Allow-Origin": "http://localhost:3000",
+              "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com",
             },
           }
         );
@@ -169,7 +169,7 @@ export async function POST(request) {
             "no-store, no-cache, must-revalidate, proxy-revalidate",
           Pragma: "no-cache",
           Expires: "0",
-          "Access-Control-Allow-Origin": "http://localhost:3000",
+          "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com",
         },
       });
     } catch (parseError) {
@@ -182,7 +182,7 @@ export async function POST(request) {
         {
           status: 500,
           headers: {
-            "Access-Control-Allow-Origin": "http://localhost:3000",
+            "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com",
           },
         }
       );
@@ -194,7 +194,7 @@ export async function POST(request) {
       {
         status: 500,
         headers: {
-          "Access-Control-Allow-Origin": "http://localhost:3000",
+          "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com",
         },
       }
     );
