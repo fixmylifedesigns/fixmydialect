@@ -27,7 +27,7 @@ export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
     headers: {
-      "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com",
+      "Access-Control-Allow-Origin": "http://anydialect.duranirving.com",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
       "Access-Control-Max-Age": "86400",
@@ -45,7 +45,7 @@ export async function POST(request) {
         {
           status: 400,
           headers: {
-            "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com",
+            "Access-Control-Allow-Origin": "http://anydialect.duranirving.com",
           },
         }
       );
@@ -82,7 +82,7 @@ export async function POST(request) {
         {
           status: response.status,
           headers: {
-            "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com",
+            "Access-Control-Allow-Origin": "http://anydialect.duranirving.com",
           },
         }
       );
@@ -94,7 +94,7 @@ export async function POST(request) {
       headers: {
         "Content-Type": "audio/mpeg",
         "Content-Length": audioBuffer.byteLength.toString(),
-        "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com", // ✅ CORS header for binary response
+        "Access-Control-Allow-Origin": "http://anydialect.duranirving.com", // ✅ CORS header for binary response
       },
     });
   } catch (error) {
@@ -104,7 +104,7 @@ export async function POST(request) {
       {
         status: 500,
         headers: {
-          "Access-Control-Allow-Origin": "http://anydialectv2.duranirving.com",
+          "Access-Control-Allow-Origin": "http://anydialect.duranirving.com",
         },
       }
     );
